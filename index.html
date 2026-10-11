@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IBKR Multi-Asset Monitor Control Center</title>
+  <style>
+    :root {
+      --bg-base: #0b0f17;
+      --bg-surface: #131b2a;
+      --bg-surface-elevated: #1a2438;
+      --bg-input: #0f1624;
+      --border-subtle: #223049;
+      --border-focus: #3b82f6;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --color-green: #10b981;
+      --color-green-bg: rgba(16, 185, 129, 0.15);
+      --color-red: #ef4444;
+      --color-red-bg: rgba(239, 68, 68, 0.15);
+      --color-yellow: #f59e0b;
+      --color-yellow-bg: rgba(245, 158, 11, 0.15);
+      --color-blue: #3b82f6;
+      --color-blue-bg: rgba(59, 130, 246, 0.15);
+      --color-purple: #8b5cf6;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 16px 24px 32px 24px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Top Navigation / App Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 18px;
+      color: white;
+    }
+
+    .brand-text h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-text p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Badges & Pills */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    .badge-green {
+      background: var(--color-green-bg);
+      color: var(--color-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-yellow {
+      background: var(--color-yellow-bg);
+      color: var(--color-yellow);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-red {
+      background: var(--color-red-bg);
+      color: var(--color-red);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .badge-blue {
+      background: var(--color-blue-bg);
+      color: var(--color-blue);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .badge-gray {
+      background: rgba(148, 163, 184, 0.15);
+      color: var(--text-muted);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: currentColor;
+      box-shadow: 0 0 8px currentColor;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: #1d4ed8;
+      box-shadow: 0 0 12px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+      border-color: var(--border-subtle);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: #24324c;
+      border-color: var(--border-focus);
+    }
+
+    .btn-danger {
+      background: var(--color-red-bg);
+      color: var(--color-red);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Card Panels */
+    .panel {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .panel-title h2 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .panel-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Form Tables */
+    .table-container {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    th {
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 10px 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border-subtle);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(34, 48, 73, 0.6);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background: rgba(30, 41, 59, 0.5);
+    }
+
+    /* Guided Form Inputs */
+    input[type="text"], input[type="number"], select {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    input:disabled, select:disabled {
+      background: rgba(15, 22, 36, 0.4);
+      color: var(--text-dim);
+      border-color: rgba(34, 48, 73, 0.4);
+      cursor: not-allowed;
+    }
+
+    .input-ticker {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      width: 90px;
+    }
+
+    .input-num {
+      font-family: var(--font-mono);
+      width: 85px;
+    }
+
+    .target-level-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 0 8px;
+      min-width: 190px;
+      height: 31px;
+      box-sizing: border-box;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .target-level-box:focus-within {
+      border-color: var(--border-focus) !important;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .target-level-box.disabled {
+      background: rgba(15, 22, 36, 0.4);
+      border-color: rgba(34, 48, 73, 0.4);
+    }
+
+    .live-market-hint {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      opacity: 0.75;
+      white-space: nowrap;
+      user-select: none;
+      text-align: right;
+      margin-left: 8px;
+      cursor: help;
+      letter-spacing: -0.2px;
+    }
+
+    .live-market-hint:hover {
+      opacity: 1;
+      color: var(--text-main);
+    }
+
+    .input-window {
+      font-family: var(--font-mono);
+      width: 95px;
+    }
+
+    .input-voice {
+      min-width: 260px;
+    }
+
+    .input-datetime {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      width: 165px;
+      padding: 5px 6px;
+      color-scheme: dark;
+    }
+
+    .select-sm {
+      width: 95px;
+      font-weight: 600;
+    }
+
+    /* Toggle switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 38px;
+      height: 22px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #334155;
+      transition: .2s;
+      border-radius: 22px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .2s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--color-green);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(16px);
+    }
+
+    /* Status indicator in row */
+    .row-validation {
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .status-ok {
+      color: var(--color-green);
+    }
+    .status-err {
+      color: var(--color-red);
+    }
+
+    /* Bottom Health Diagnostics Bar */
+    .health-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .health-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .health-card-header {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .health-card-val {
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .health-card-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    /* Notification Toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      display: none;
+      z-index: 1000;
+      animation: slideIn 0.2s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">⚡</div>
+      <div class="brand-text">
+        <h1>IBKR Multi-Asset Velocity & Target Monitor</h1>
+        <p>Live Real-Time Control & Telemetry Dashboard</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span id="header-daemon-badge" class="badge badge-gray">Daemon: Checking...</span>
+      <span id="header-tws-badge" class="badge badge-gray">TWS: Checking...</span>
+      <button class="btn btn-secondary" onclick="triggerTestAlert()">🔊 Test Sound & Voice</button>
+      <button class="btn btn-primary" id="btn-save-config" onclick="saveConfigToServer()">💾 Save Config to File</button>
+    </div>
+  </header>
+
+  <!-- TOP SECTION: Monitor Config Editor -->
+  <section class="panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <h2>1. Active Rule Configuration Editor</h2>
+        <span class="badge badge-blue">monitor_config.csv</span>
+        <span id="unsaved-badge" class="badge badge-yellow" style="display: none;">● Unsaved Changes</span>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-primary" onclick="addNewRow('IV', 'TARGET')" title="Add direct ATM IV threshold rule (e.g. above 100%)">+ Add IV Target Rule</button>
+        <button class="btn btn-secondary" onclick="addNewRow('PRICE', 'TARGET')" title="Add direct stock price threshold rule">+ Add Price Target</button>
+        <button class="btn btn-secondary" onclick="addNewRow('PRICE', 'VELOCITY')" title="Add rolling velocity rule">+ Add Velocity Rule</button>
+        <button class="btn btn-secondary" onclick="loadConfigFromServer()">↻ Reload Saved</button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table id="config-table">
+        <thead>
+          <tr>
+            <th style="width: 40px;">#</th>
+            <th>Ticker</th>
+            <th>Metric</th>
+            <th>Mode</th>
+            <th title="In TARGET mode: Target Stock Price ($) or Direct ATM IV Level (%)">Target Level (Price $ / IV %)</th>
+            <th>Condition</th>
+            <th>Time Window</th>
+            <th>Start Time Overwrite (Calendar)</th>
+            <th>Threshold %</th>
+            <th>Voice Alert Template</th>
+            <th>Enabled</th>
+            <th>Validation Status</th>
+            <th style="text-align: center; width: 60px;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="config-tbody">
+          <!-- Rows rendered dynamically via JS -->
+        </tbody>
+      </table>
+    </div>
+    <p class="panel-subtitle">
+      💡 <b>Tips:</b>
+      • In <b>TARGET</b> mode: Directly monitors whether live Stock Price or ATM Option IV crosses your chosen Target Level (e.g. <b>SOXL ATM IV &gt; 100.0%</b> or SOXL Price &lt; $135.00). Rate-limited to 1 alert per 2 mins per target.
+      <br>
+      • In <b>VELOCITY</b> mode: Compares live Stock Price or Option IV against <b>TWS historical baseline data</b> over a rolling window (e.g. ±5.0 vol pts over 5m). Supports optional Start Time Overwrite via calendar.
+    </p>
+  </section>
+
+  <!-- BOTTOM SECTION: Realtime Status Monitor -->
+  <section class="panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <h2>2. Live Subscription & Tick Telemetry Mirror</h2>
+        <span class="badge badge-green"><span class="pulse-dot"></span> Live Polling (1.5s)</span>
+        <span class="badge badge-gray">monitor_status.csv</span>
+      </div>
+      <div>
+        <span id="status-last-updated" class="panel-subtitle">Updated: Just now</span>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table id="status-table">
+        <thead>
+          <tr>
+            <th style="width: 40px;">#</th>
+            <th>Ticker</th>
+            <th>Metric</th>
+            <th>Mode</th>
+            <th>Target / Window</th>
+            <th>Active Window Mode / Elapsed</th>
+            <th>Baseline Start Time</th>
+            <th>Baseline Price / IV</th>
+            <th>Last Received Update Time</th>
+            <th>Live Stream Status / TWS Reason</th>
+          </tr>
+        </thead>
+        <tbody id="status-tbody">
+          <!-- Realtime status rendered dynamically -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- FOOTER SECTION: Daemon & System Health -->
+  <section class="panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <h2>3. System & Daemon Health Diagnostics</h2>
+        <span class="panel-subtitle">Hardware, Socket, and SQLite Telemetry</span>
+      </div>
+      <div>
+        <button class="btn btn-secondary" onclick="restartDaemon()">🔄 Restart Monitor Daemon</button>
+      </div>
+    </div>
+
+    <div class="health-grid">
+      <!-- Card 1: Daemon -->
+      <div class="health-card">
+        <div class="health-card-header">
+          <span>Monitor Daemon (launchd)</span>
+          <span id="daemon-indicator" class="pulse-dot" style="color: var(--color-green);"></span>
+        </div>
+        <div class="health-card-val" id="health-daemon-status">Checking...</div>
+        <div class="health-card-sub" id="health-daemon-sub">PID: - | Uptime: -</div>
+      </div>
+
+      <!-- Card 2: TWS Socket -->
+      <div class="health-card">
+        <div class="health-card-header">
+          <span>TWS Socket API</span>
+          <span id="tws-indicator" class="pulse-dot" style="color: var(--color-green);"></span>
+        </div>
+        <div class="health-card-val" id="health-tws-status">Port 7496</div>
+        <div class="health-card-sub" id="health-tws-sub">Host: 127.0.0.1 (ClientID 55)</div>
+      </div>
+
+      <!-- Card 3: SQLite DB -->
+      <div class="health-card">
+        <div class="health-card-header">
+          <span>Persistent Tick History</span>
+          <span style="font-size: 14px;">💾</span>
+        </div>
+        <div class="health-card-val" id="health-db-ticks">- Ticks</div>
+        <div class="health-card-sub" id="health-db-sub">Latest: - | Size: - KB</div>
+      </div>
+
+      <!-- Card 4: Config Sync -->
+      <div class="health-card">
+        <div class="health-card-header">
+          <span>File Sync Telemetry</span>
+          <span style="font-size: 14px;">⏱️</span>
+        </div>
+        <div class="health-card-val" id="health-sync-status">Instant &lt;500ms</div>
+        <div class="health-card-sub" id="health-sync-sub">Config MTime: -</div>
+      </div>
+    </div>
+  </section>
+
+  <div id="toast"></div>
+
+  <script>
+    // State management
+    let currentConfigRows = [];
+    let savedConfigRows = [];
+    let hasUnsavedChanges = false;
+    let pollTimer = null;
+
+    // Toast utility
+    function showToast(message, isError = false) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.style.background = isError ? "var(--color-red-bg)" : "var(--color-green-bg)";
+      toast.style.color = isError ? "var(--color-red)" : "var(--color-green)";
+      toast.style.border = isError ? "1px solid rgba(239, 68, 68, 0.4)" : "1px solid rgba(16, 185, 129, 0.4)";
+      toast.style.display = "block";
+      setTimeout(() => { toast.style.display = "none"; }, 4000);
+    }
+
+    // Datetime Helpers for Calendar Input
+    function getMinDatetimeStr() {
+      const d = new Date(Date.now() - 10 * 86400 * 1000);
+      return d.toISOString().slice(0, 16);
+    }
+
+    function getMaxDatetimeStr() {
+      const d = new Date(Date.now() + 1 * 86400 * 1000);
+      return d.toISOString().slice(0, 16);
+    }
+
+    function formatForDatetimeLocal(str) {
+      if (!str) return "";
+      const s = String(str).trim().replace(" ", "T");
+      return s.slice(0, 16);
+    }
+
+    // Row Validator
+    function validateRow(row) {
+      const ticker = (row.ticker || "").trim().toUpperCase();
+      if (!ticker) return { valid: false, msg: "Missing ticker" };
+      if (!/^[A-Z0-9.]+$/.test(ticker)) return { valid: false, msg: "Invalid ticker format" };
+
+      const metric = (row.metric || "").trim().toUpperCase();
+      if (!["PRICE", "IV", "OPT_PRICE"].includes(metric)) return { valid: false, msg: "Metric must be PRICE, IV, or OPT_PRICE" };
+
+      const mode = (row.mode || "").trim().toUpperCase();
+      if (!["TARGET", "VELOCITY"].includes(mode)) return { valid: false, msg: "Mode must be TARGET or VELOCITY" };
+
+      if (mode === "TARGET") {
+        const tgt = parseFloat(row.target_price);
+        const label = metric === "IV" ? "Target IV Level (%)" : "Target Price";
+        if (isNaN(tgt) || tgt <= 0) return { valid: false, msg: `${label} must be > 0` };
+        if (!["ABOVE", "BELOW"].includes((row.condition || "").toUpperCase())) {
+          return { valid: false, msg: "Condition must be ABOVE or BELOW" };
+        }
+      } else if (mode === "VELOCITY") {
+        const win = (row.time_window || "").trim().toLowerCase();
+        if (!win || !["m", "h", "d"].some(u => win.endsWith(u))) {
+          return { valid: false, msg: "Time window must end in m, h, or d (e.g. 5m, 1h)" };
+        }
+        const thresh = parseFloat(row.threshold_pct);
+        if (isNaN(thresh) || thresh <= 0) return { valid: false, msg: "Threshold % must be > 0" };
+
+        if (row.window_start_time) {
+          const s = String(row.window_start_time).trim().replace(" ", "T");
+          const t = new Date(s).getTime();
+          if (isNaN(t)) {
+            return { valid: false, msg: "Invalid Start Time" };
+          }
+          const now = Date.now();
+          if (t < now - 10 * 86400 * 1000) return { valid: false, msg: "Start Time >10d in past" };
+          if (t > now + 1 * 86400 * 1000) return { valid: false, msg: "Start Time >1d in future" };
+        }
+      }
+
+      return { valid: true, msg: "Valid Rule" };
+    }
+
+    let latestMarketQuotes = {};
+
+    function formatMarketHint(ticker, metric) {
+      if (!ticker) return "--";
+      const q = latestMarketQuotes[ticker.toUpperCase()];
+      if (!q) return "--";
+
+      const spotStr = (q.spot !== null && q.spot !== undefined) ? `$${Number(q.spot).toFixed(2)}` : null;
+      const ivStr = (q.iv !== null && q.iv !== undefined) ? `${Number(q.iv).toFixed(1)}%` : null;
+
+      if (spotStr && ivStr) {
+        return `${spotStr} · ${ivStr}`;
+      } else if (spotStr) {
+        return spotStr;
+      } else if (ivStr) {
+        return ivStr;
+      }
+      return "--";
+    }
+
+    function updateConfigMarketHints() {
+      currentConfigRows.forEach((row, idx) => {
+        const hintEl = document.getElementById(`live-hint-${idx}`);
+        if (hintEl) {
+          const hintText = formatMarketHint(row.ticker || "", row.metric || "");
+          hintEl.textContent = hintText;
+          const q = latestMarketQuotes[(row.ticker || "").toUpperCase()];
+          if (q) {
+            const spotPart = q.spot ? `$${Number(q.spot).toFixed(2)}` : "N/A";
+            const ivPart = q.iv ? `${Number(q.iv).toFixed(1)}%` : "N/A";
+            const strikePart = q.strike ? ` (ATM $${q.strike})` : "";
+            hintEl.title = `${row.ticker}: Spot ${spotPart} | ATM IV ${ivPart}${strikePart}`;
+          } else {
+            hintEl.title = "Live market reference (Spot & ATM IV)";
+          }
+        }
+      });
+    }
+
+    // Render Config Rows
+    function renderConfigRows() {
+      const tbody = document.getElementById("config-tbody");
+      tbody.innerHTML = "";
+
+      currentConfigRows.forEach((row, idx) => {
+        const valRes = validateRow(row);
+        const isTarget = (row.mode || "TARGET").toUpperCase() === "TARGET";
+        const isEnabled = String(row.enabled).toLowerCase() === "true";
+
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+          <td style="color: var(--text-dim); font-family: var(--font-mono);">${idx + 1}</td>
+          <td>
+            <input type="text" class="input-ticker" value="${row.ticker || ""}" 
+              oninput="updateRowField(${idx}, 'ticker', this.value)" placeholder="e.g. SOXL">
+          </td>
+          <td>
+            <select class="select-sm" onchange="updateRowField(${idx}, 'metric', this.value)">
+              <option value="PRICE" ${row.metric === "PRICE" ? "selected" : ""}>PRICE</option>
+              <option value="IV" ${row.metric === "IV" ? "selected" : ""}>IV</option>
+              <option value="OPT_PRICE" ${row.metric === "OPT_PRICE" ? "selected" : ""}>OPT_PRICE</option>
+            </select>
+          </td>
+          <td>
+            <select class="select-sm" onchange="updateRowField(${idx}, 'mode', this.value)">
+              <option value="TARGET" ${isTarget ? "selected" : ""}>TARGET</option>
+              <option value="VELOCITY" ${!isTarget ? "selected" : ""}>VELOCITY</option>
+            </select>
+          </td>
+          <td>
+            <div class="target-level-box ${!isTarget ? 'disabled' : ''}" style="${row.metric === 'IV' && isTarget ? 'border-color: rgba(139, 92, 246, 0.4);' : ''}">
+              <div style="display: flex; align-items: center; gap: 2px;">
+                ${isTarget ? `
+                  <input type="number" step="${row.metric === 'IV' ? '0.5' : '0.1'}" 
+                    value="${row.target_price || ""}" 
+                    oninput="updateRowField(${idx}, 'target_price', this.value)" 
+                    placeholder="${row.metric === 'IV' ? '100.0' : (row.metric === 'OPT_PRICE' ? '7.50' : '140.0')}"
+                    title="${row.metric === 'IV' ? 'Target ATM IV level in percent (e.g. 100 for 100% IV)' : 'Target price in dollars'}"
+                    style="
+                      background: transparent;
+                      border: none;
+                      padding: 0;
+                      width: 58px;
+                      font-size: 13px;
+                      font-family: var(--font-mono);
+                      font-weight: 600;
+                      color: var(--text-main);
+                      outline: none;
+                    ">
+                  ${row.metric === 'IV' ? '<span style="font-size: 11px; color: var(--color-purple); font-weight: 700;">%</span>' : ''}
+                ` : `
+                  <span style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); font-style: italic;">Rolling</span>
+                `}
+              </div>
+
+              <div id="live-hint-${idx}" class="live-market-hint" title="Live reference: Spot Price & ATM IV (refreshes automatically)">
+                ${formatMarketHint(row.ticker, row.metric)}
+              </div>
+            </div>
+          </td>
+          <td>
+            <select class="select-sm" ${!isTarget ? "disabled" : ""} 
+              onchange="updateRowField(${idx}, 'condition', this.value)">
+              <option value="ABOVE" ${row.condition === "ABOVE" ? "selected" : ""}>ABOVE</option>
+              <option value="BELOW" ${row.condition === "BELOW" ? "selected" : ""}>BELOW</option>
+            </select>
+          </td>
+          <td>
+            <select class="input-window" ${isTarget ? "disabled" : ""} 
+              onchange="updateRowField(${idx}, 'time_window', this.value)">
+              <option value="">-- select --</option>
+              <option value="5m" ${row.time_window === "5m" ? "selected" : ""}>5 mins (5m)</option>
+              <option value="15m" ${row.time_window === "15m" ? "selected" : ""}>15 mins (15m)</option>
+              <option value="30m" ${row.time_window === "30m" ? "selected" : ""}>30 mins (30m)</option>
+              <option value="1h" ${row.time_window === "1h" ? "selected" : ""}>1 hour (1h)</option>
+              <option value="2h" ${row.time_window === "2h" ? "selected" : ""}>2 hours (2h)</option>
+              <option value="1d" ${row.time_window === "1d" ? "selected" : ""}>1 day (1d)</option>
+            </select>
+          </td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <input type="datetime-local" class="input-datetime" 
+                value="${formatForDatetimeLocal(row.window_start_time)}"
+                min="${getMinDatetimeStr()}"
+                max="${getMaxDatetimeStr()}"
+                ${isTarget ? "disabled" : ""}
+                onchange="updateRowField(${idx}, 'window_start_time', this.value.replace('T', ' '))">
+              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 11px;" 
+                ${isTarget || !row.window_start_time ? "disabled" : ""}
+                onclick="updateRowField(${idx}, 'window_start_time', ''); renderConfigRows();" title="Clear start time (revert to rolling)">✕</button>
+            </div>
+          </td>
+          <td>
+            <input type="number" step="0.5" class="input-num" value="${row.threshold_pct || ""}" 
+              ${isTarget ? "disabled" : ""} 
+              oninput="updateRowField(${idx}, 'threshold_pct', this.value)" placeholder="5.0">
+          </td>
+          <td>
+            <input type="text" class="input-voice" value="${escapeQuotes(row.voice_alert_text || "")}" 
+              oninput="updateRowField(${idx}, 'voice_alert_text', this.value)" placeholder="Alert: {ticker} alert triggered">
+          </td>
+          <td style="text-align: center;">
+            <label class="switch">
+              <input type="checkbox" ${isEnabled ? "checked" : ""} 
+                onchange="updateRowField(${idx}, 'enabled', this.checked ? 'true' : 'false')">
+              <span class="slider"></span>
+            </label>
+          </td>
+          <td>
+            <span class="row-validation ${valRes.valid ? 'status-ok' : 'status-err'}">
+              ${valRes.valid ? '🟢' : '🔴'} ${valRes.msg}
+            </span>
+          </td>
+          <td style="text-align: center;">
+            <button class="btn btn-danger" style="padding: 4px 8px;" onclick="deleteRow(${idx})" title="Delete row">✕</button>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+
+      checkUnsavedChanges();
+      updateConfigMarketHints();
+    }
+
+    function escapeQuotes(str) {
+      return str.replace(/"/g, '&quot;');
+    }
+
+    function updateRowField(idx, field, value) {
+      currentConfigRows[idx][field] = value;
+      // If mode or metric toggled, re-render to update inputs, placeholders, and tooltips
+      if (field === 'mode' || field === 'metric') {
+        const row = currentConfigRows[idx];
+        if (row.metric === 'IV' && row.mode === 'TARGET') {
+          if (!row.target_price) row.target_price = "100.0";
+          if (!row.voice_alert_text || row.voice_alert_text.includes('moved by') || row.voice_alert_text.includes('target price')) {
+            row.voice_alert_text = "Warning: {ticker} ATM IV spiked above {target} percent";
+          }
+        } else if (row.metric === 'PRICE' && row.mode === 'TARGET') {
+          if (!row.voice_alert_text || row.voice_alert_text.includes('ATM IV')) {
+            row.voice_alert_text = "Alert: {ticker} reached target price {target}";
+          }
+        }
+        renderConfigRows();
+      } else {
+        if (field === 'ticker') {
+          updateConfigMarketHints();
+        }
+        // Just update validation inline
+        const valRes = validateRow(currentConfigRows[idx]);
+        const tr = document.getElementById("config-tbody").children[idx];
+        if (tr) {
+          const valCell = tr.children[11].querySelector(".row-validation");
+          if (valCell) {
+            valCell.className = `row-validation ${valRes.valid ? 'status-ok' : 'status-err'}`;
+            valCell.innerHTML = `${valRes.valid ? '🟢' : '🔴'} ${valRes.msg}`;
+          }
+        }
+        checkUnsavedChanges();
+      }
+    }
+
+    function addNewRow(defMetric = "IV", defMode = "TARGET") {
+      const isIVTarget = defMetric === "IV" && defMode === "TARGET";
+      const isPriceTarget = defMetric === "PRICE" && defMode === "TARGET";
+      currentConfigRows.push({
+        ticker: "SOXL",
+        metric: defMetric,
+        mode: defMode,
+        target_price: isIVTarget ? "100.0" : (isPriceTarget ? "140.0" : ""),
+        condition: "ABOVE",
+        time_window: defMode === "VELOCITY" ? "30m" : "",
+        window_start_time: "",
+        threshold_pct: defMode === "VELOCITY" ? (defMetric === "IV" ? "5.0" : "4.0") : "",
+        voice_alert_text: isIVTarget 
+          ? "Warning: {ticker} ATM IV spiked above {target} percent" 
+          : (isPriceTarget 
+              ? "Alert: {ticker} rose above target price {target}" 
+              : "Alert: {ticker} {metric} moved by {delta:.1f} percent over {window_brief}"),
+        enabled: "true"
+      });
+      renderConfigRows();
+      // Scroll to bottom of table
+      const container = document.querySelector("#config-table").parentElement;
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function deleteRow(idx) {
+      if (confirm(`Delete rule #${idx + 1} (${currentConfigRows[idx].ticker || 'Rule'})?`)) {
+        currentConfigRows.splice(idx, 1);
+        renderConfigRows();
+      }
+    }
+
+    function checkUnsavedChanges() {
+      const curJson = JSON.stringify(currentConfigRows);
+      const savedJson = JSON.stringify(savedConfigRows);
+      hasUnsavedChanges = curJson !== savedJson;
+
+      const badge = document.getElementById("unsaved-badge");
+      badge.style.display = hasUnsavedChanges ? "inline-flex" : "none";
+
+      const saveBtn = document.getElementById("btn-save-config");
+      // Check if any row has validation errors
+      const hasErrors = currentConfigRows.some(r => !validateRow(r).valid);
+      saveBtn.disabled = hasErrors;
+      if (hasErrors) {
+        saveBtn.title = "Fix highlighted errors before saving";
+      } else {
+        saveBtn.title = "Save changes to monitor_config.csv";
+      }
+    }
+
+    // API Interactions
+    async function loadConfigFromServer() {
+      try {
+        const res = await fetch("/api/config");
+        const data = await res.json();
+        if (data.success) {
+          if (data.market_quotes) {
+            latestMarketQuotes = data.market_quotes;
+          }
+          savedConfigRows = JSON.parse(JSON.stringify(data.rows));
+          currentConfigRows = JSON.parse(JSON.stringify(data.rows));
+          renderConfigRows();
+          updateConfigMarketHints();
+        }
+      } catch (e) {
+        console.error("Error loading config:", e);
+      }
+    }
+
+    async function saveConfigToServer() {
+      // Validate all rows
+      for (let i = 0; i < currentConfigRows.length; i++) {
+        const v = validateRow(currentConfigRows[i]);
+        if (!v.valid) {
+          showToast(`Row ${i + 1} error: ${v.msg}`, true);
+          return;
+        }
+      }
+
+      try {
+        const res = await fetch("/api/config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rows: currentConfigRows })
+        });
+        const data = await res.json();
+        if (data.success) {
+          savedConfigRows = JSON.parse(JSON.stringify(currentConfigRows));
+          checkUnsavedChanges();
+          showToast(data.message || "Saved successfully!");
+          // Trigger immediate status refresh
+          setTimeout(loadStatusFromServer, 600);
+        } else {
+          showToast(data.message || "Save failed", true);
+        }
+      } catch (e) {
+        showToast("Network error saving config: " + e.message, true);
+      }
+    }
+
+    async function loadStatusFromServer() {
+      try {
+        const res = await fetch("/api/status");
+        const data = await res.json();
+        if (data.success) {
+          if (data.market_quotes) {
+            latestMarketQuotes = data.market_quotes;
+            updateConfigMarketHints();
+          }
+          renderStatusRows(data.rows);
+          document.getElementById("status-last-updated").textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+        }
+      } catch (e) {
+        console.error("Error loading status:", e);
+      }
+    }
+
+    function renderStatusRows(rows) {
+      const tbody = document.getElementById("status-tbody");
+      tbody.innerHTML = "";
+
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 20px;">No active rows found in monitor_status.csv</td></tr>`;
+        return;
+      }
+
+      rows.forEach((r, idx) => {
+        const tr = document.createElement("tr");
+        const isIV = (r.metric || "").toUpperCase() === "IV";
+        let tgtWin = "-";
+        if (r.target_price) {
+          const numVal = parseFloat(r.target_price);
+          const formattedVal = isIV 
+            ? `${isNaN(numVal) ? r.target_price : numVal.toFixed(1)}%` 
+            : `$${isNaN(numVal) ? r.target_price : numVal.toFixed(2)}`;
+          tgtWin = `${formattedVal} (${r.condition || ''})`;
+        } else if (r.time_window) {
+          tgtWin = `${r.time_window} (±${r.threshold_pct}${isIV ? ' vol pts' : '%'})`;
+        }
+        const isEnabled = String(r.enabled).toLowerCase() === "true";
+
+        let reasonBadge = `<span class="badge badge-gray">${r.failed_reason || 'Unknown'}</span>`;
+        const fr = r.failed_reason || "";
+        if (fr.startsWith("OK (Streaming Live")) {
+          reasonBadge = `<span class="badge badge-green"><span class="pulse-dot"></span> ${fr}</span>`;
+        } else if (fr.startsWith("OK (Streaming Delayed")) {
+          reasonBadge = `<span class="badge badge-yellow">⚠️ ${fr}</span>`;
+        } else if (fr.startsWith("Subscribed")) {
+          reasonBadge = `<span class="badge badge-blue">⏳ ${fr}</span>`;
+        } else if (fr.includes("Error") || fr.includes("Warning") || fr.includes("Validation")) {
+          reasonBadge = `<span class="badge badge-red">🚨 ${fr}</span>`;
+        } else if (fr === "Disabled") {
+          reasonBadge = `<span class="badge badge-gray">⚪ Disabled</span>`;
+        }
+
+        let modeBadge = `<span class="badge badge-gray">${r.window_mode || '-'}</span>`;
+        if (r.window_mode && r.window_mode.includes("Anchor")) {
+          modeBadge = `<span class="badge badge-yellow">⚓ ${r.window_mode}</span>`;
+        } else if (r.window_mode && r.window_mode.includes("Rolling")) {
+          modeBadge = `<span class="badge badge-blue">🔄 ${r.window_mode}</span>`;
+        } else if (r.window_mode && r.window_mode.includes("Scheduled")) {
+          modeBadge = `<span class="badge badge-gray">⏱️ ${r.window_mode}</span>`;
+        } else if (r.window_mode && r.window_mode.includes("Target")) {
+          modeBadge = `<span class="badge badge-green">🎯 ${r.window_mode}</span>`;
+        }
+
+        tr.innerHTML = `
+          <td style="color: var(--text-dim); font-family: var(--font-mono);">${idx + 1}</td>
+          <td><b>${r.ticker}</b></td>
+          <td><span class="badge badge-blue">${r.metric}</span></td>
+          <td>${r.mode}</td>
+          <td><code>${tgtWin}</code></td>
+          <td>${modeBadge}</td>
+          <td style="font-family: var(--font-mono); font-size: 12px; color: var(--color-blue); font-weight: 500;">${r.baseline_start_time || '-'}</td>
+          <td style="font-family: var(--font-mono); font-size: 12px; font-weight: 600;">${r.baseline_price || '-'}</td>
+          <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-muted);">${r.last_received_update_time || '-'}</td>
+          <td>${reasonBadge}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function loadHealthFromServer() {
+      try {
+        const res = await fetch("/api/health");
+        const data = await res.json();
+        if (data.success) {
+          // Daemon badge & card
+          const daemon = data.daemon || {};
+          const isRunning = daemon.running;
+          const daemonBadge = document.getElementById("header-daemon-badge");
+          daemonBadge.className = `badge ${isRunning ? 'badge-green' : 'badge-red'}`;
+          daemonBadge.innerHTML = isRunning ? `<span class="pulse-dot"></span> Daemon: Active (PID ${daemon.pid})` : `Daemon: Stopped`;
+
+          document.getElementById("health-daemon-status").textContent = isRunning ? `Active (PID ${daemon.pid})` : "Stopped / Inactive";
+          document.getElementById("health-daemon-status").style.color = isRunning ? "var(--color-green)" : "var(--color-red)";
+          document.getElementById("health-daemon-sub").textContent = isRunning ? `CPU: ${daemon.cpu}% | RAM: ${daemon.mem}% | Uptime: ${daemon.uptime}` : "LaunchAgent not running";
+
+          // TWS
+          const tws = data.tws || {};
+          const twsBadge = document.getElementById("header-tws-badge");
+          twsBadge.className = `badge ${tws.connected ? 'badge-green' : 'badge-red'}`;
+          twsBadge.innerHTML = tws.connected ? `<span class="pulse-dot"></span> TWS: Port ${tws.port} OK` : `TWS: Port ${tws.port} Offline`;
+
+          document.getElementById("health-tws-status").textContent = tws.connected ? "Listening & Connected" : "Connection Refused";
+          document.getElementById("health-tws-status").style.color = tws.connected ? "var(--color-green)" : "var(--color-red)";
+
+          // DB
+          const db = data.db || {};
+          document.getElementById("health-db-ticks").textContent = `${Number(db.ticks || 0).toLocaleString()} Ticks Logged`;
+          document.getElementById("health-db-sub").textContent = `Latest Tick: ${db.latest_tick || '-'} | Size: ${db.size_kb || 0} KB`;
+
+          // Sync
+          document.getElementById("health-sync-sub").textContent = `Config: ${data.config_mtime} | Status: ${data.status_mtime}`;
+        }
+      } catch (e) {
+        console.error("Error loading health:", e);
+      }
+    }
+
+    async function restartDaemon() {
+      if (confirm("Restart com.ibkr.multi_asset_monitor daemon via launchctl?")) {
+        try {
+          const res = await fetch("/api/daemon/restart", { method: "POST" });
+          const data = await res.json();
+          showToast(data.message || "Restarted daemon");
+          loadHealthFromServer();
+          setTimeout(loadStatusFromServer, 1500);
+        } catch (e) {
+          showToast("Failed to restart daemon: " + e.message, true);
+        }
+      }
+    }
+
+    async function triggerTestAlert() {
+      try {
+        const res = await fetch("/api/test-alert", { method: "POST" });
+        const data = await res.json();
+        showToast("🔊 " + (data.message || "Test alert dispatched"));
+      } catch (e) {
+        showToast("Error triggering test alert: " + e.message, true);
+      }
+    }
+
+    // Auto-polling cycle
+    window.addEventListener("DOMContentLoaded", () => {
+      loadConfigFromServer();
+      loadStatusFromServer();
+      loadHealthFromServer();
+
+      // Poll status & health every 1.5 seconds
+      pollTimer = setInterval(() => {
+        loadStatusFromServer();
+        loadHealthFromServer();
+      }, 1500);
+    });
+  </script>
+</body>
+</html>

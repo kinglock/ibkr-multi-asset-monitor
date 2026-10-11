@@ -1,0 +1,8 @@
+ticker,metric,mode,time_window,threshold_pct,target_price,condition,voice_alert_text,enabled
+SOXL,PRICE,TARGET,,,140,ABOVE,Alert: SOXL rose above target price 145,true
+SOXL,PRICE,TARGET,,,135.0,BELOW,Notice: SOXL dropped below target price 135,true
+SOXL,IV,TARGET,,,105,ABOVE,Warning: SOXL ATM IV spiked above 95 percent,true
+SOXL,IV,VELOCITY,5m,5.0,,,Attention: SOXL ATM IV changed by {delta:.1f} percent over 5 minutes,true
+SOXL,PRICE,VELOCITY,30m,4.0,,,Notice: SOXL stock price changed by {delta:.1f} percent over 30 minutes,true
+NVDA,PRICE,TARGET,,,235.0,ABOVE,Alert: Nvidia price reached target 235,false
+NVDA,PRICE,VELOCITY,1h,3.0,,,Alert: Nvidia price changed by {delta:.1f} percent over 1 hour,false

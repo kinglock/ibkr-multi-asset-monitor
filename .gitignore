@@ -1,0 +1,93 @@
+# ==============================================================================
+# SECRETS & CREDENTIALS (NEVER COMMIT)
+# ==============================================================================
+credentials.json
+client_secret*.json
+gmail_token.json
+*.pem
+*.key
+*.token
+
+# ==============================================================================
+# DATABASES & RUNTIME STATE
+# ==============================================================================
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+monitor_history.db
+monitor_ticks.db
+multi_asset_history.db
+monitor_status.csv
+
+# ==============================================================================
+# LOGS & SYSTEM RUNTIME ARTIFACTS
+# ==============================================================================
+*.log
+*.stdout.log
+*.stderr.log
+
+# ==============================================================================
+# PYTHON CACHE & ENVIRONMENTS
+# ==============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# ==============================================================================
+# OS SYSTEM FILES
+# ==============================================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ==============================================================================
+# ONE-OFF SCRATCH SCRIPTS, TESTS & EXPLORATION DUMPS
+# ==============================================================================
+test_*.py
+simulate_*.py
+calc_*.py
+check_*.py
+inspect_*.py
+generate_*.py
+pull_*.py
+split_*.py
+verify_*.py
+watch_*.py
+dismiss_modal.py
+open_downloads.py
+save_*.py
+search_policy_file.py
+parse_*.py
+dump_*.py
+fast_pull_*.py
+get_*.py
+make_options_chart.py
+plot_*.py
+process_*.py
+query_ibkr_statement.py
+run_flex.py
+soxl_iv_monitor.py
+tws_options_and_account.py
+update_html_chart.py
+validate_iv_ground_truth.py
+current_positions_dump.txt
+ibkr_interest_page.txt
+*.png
+*.json
+*.html
+!index.html
+*.xml
+*.csv
+!monitor_config.csv
+analyze_*.py
+create_custom_stmt.py
+find_options.py
+ibkr_option_quotes.py
+list_tabs.py
+setup_custom_stmt.py
+
