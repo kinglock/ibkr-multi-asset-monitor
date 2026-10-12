@@ -134,7 +134,7 @@ class AlertRouter:
         incident = cls.get_active_incident(rule_id)
 
         # -------------------------------------------------------------
-        # CASE 1: No active incident -> Wave 1: First Desktop Alert
+        # CASE 1: No active incident -> Wave 1: First Desktop Alert + Immediate Gmail Alert
         # -------------------------------------------------------------
         if not incident:
             incident_id = f"inc_{int(now)}_{secrets.token_hex(4)}"
@@ -149,60 +149,21 @@ class AlertRouter:
                             trigger_count, first_triggered_at, last_alert_at, email_sent_at,
                             confirmed, disabled, confirmation_token, last_snooze_slot,
                             status, last_seen_at, rule_summary
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0, 0, 0, ?, '', 'ACTIVE', ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 0, 0, ?, '', 'ACTIVE', ?, ?)
                     """, (
                         incident_id, rule_id, rule_num, rule.ticker, rule.metric, rule.mode,
                         getattr(rule, "condition", "ABOVE"), getattr(rule, "target_price", None),
                         getattr(rule, "threshold_pct", None), current_val, spot, strike,
-                        now, now, token, now, rule_summary
+                        now, now, now, token, now, rule_summary
                     ))
                     conn.commit()
 
-            print(f"\n[ALERT ROUTER] 🚨 Wave 1/2 Desktop Alert dispatched for {rule.ticker} {rule.metric} (Val: {current_val:.2f}). Incident: {incident_id}", flush=True)
+            print(f"\n[ALERT ROUTER] 🚨 Wave 1/2 Desktop Alert + Gmail Alert dispatched for {rule.ticker} {rule.metric} (Val: {current_val:.2f}). Incident: {incident_id}", flush=True)
             desktop_dispatch_fn(title, msg, voice_text)
-            return
 
-        # -------------------------------------------------------------
-        # Check if already confirmed or disabled
-        # -------------------------------------------------------------
-        if incident.get("confirmed") == 1 or incident.get("disabled") == 1:
-            # User confirmed receipt or disabled rule; silence alerts
-            return
-
-        trigger_count = incident.get("trigger_count", 1)
-        last_alert_at = incident.get("last_alert_at", 0)
-        time_since_last = now - last_alert_at
-
-        # -------------------------------------------------------------
-        # CASE 2: Wave 2 (Second Desktop Alert + Concurrent Gmail Escalation)
-        # -------------------------------------------------------------
-        if trigger_count == 1:
-            if time_since_last < ALERT_COOLDOWN_SECONDS:
-                remaining = int(ALERT_COOLDOWN_SECONDS - time_since_last)
-                # Still within 2-minute gap between Alert 1 and Alert 2
-                return
-
-            # Exactly 2 minutes elapsed; fire Wave 2 Desktop Alert AND send Escalation Email
-            token = incident.get("confirmation_token")
+            # Fire Gmail Alert immediately on first trigger asynchronously
             confirm_url = f"{TAILSCALE_BASE_URL}/api/alert/confirm?token={token}"
             disable_url = f"{TAILSCALE_BASE_URL}/api/alert/disable?token={token}"
-
-            with _db_lock:
-                with get_db_connection() as conn:
-                    conn.execute("""
-                        UPDATE alert_incidents
-                        SET trigger_count = 2, last_alert_at = ?, email_sent_at = ?,
-                            current_val = ?, spot = ?, strike = ?, last_seen_at = ?
-                        WHERE incident_id = ?
-                    """, (now, now, current_val, spot, strike, now, incident["incident_id"]))
-                    conn.commit()
-
-            print(f"\n[ALERT ROUTER] 🚨 Wave 2/2 Desktop Alert + Gmail Escalation for {rule.ticker} {rule.metric}! Incident: {incident['incident_id']}", flush=True)
-            
-            # Fire Desktop Alert #2
-            desktop_dispatch_fn(f"[2nd Alert] {title}", msg, f"Second alert: {voice_text}")
-
-            # Fire Gmail Escalation asynchronously so IBKR tick loop never blocks
             email_payload = {
                 "ticker": rule.ticker,
                 "metric": rule.metric,
@@ -218,16 +179,53 @@ class AlertRouter:
                 "time_str": dt_now.strftime("%Y-%m-%d %H:%M:%S"),
                 "confirm_url": confirm_url,
                 "disable_url": disable_url,
-                "attempt_num": 2
+                "attempt_num": 1
             }
             def send_async():
                 try:
                     import gmail_service
                     gmail_service.send_alert_email(email_payload)
                 except Exception as mail_err:
-                    print(f"[!] [ALERT ROUTER] Gmail escalation dispatch failed: {mail_err}", flush=True)
+                    print(f"[!] [ALERT ROUTER] Gmail alert dispatch failed: {mail_err}", flush=True)
 
             threading.Thread(target=send_async, daemon=True).start()
+            return
+
+        # -------------------------------------------------------------
+        # Check if already confirmed or disabled
+        # -------------------------------------------------------------
+        if incident.get("confirmed") == 1 or incident.get("disabled") == 1:
+            # User confirmed receipt or disabled rule; silence alerts
+            return
+
+        trigger_count = incident.get("trigger_count", 1)
+        last_alert_at = incident.get("last_alert_at", 0)
+        time_since_last = now - last_alert_at
+
+        # -------------------------------------------------------------
+        # CASE 2: Wave 2 (Second Desktop Alert 2 minutes later)
+        # -------------------------------------------------------------
+        if trigger_count == 1:
+            if time_since_last < ALERT_COOLDOWN_SECONDS:
+                remaining = int(ALERT_COOLDOWN_SECONDS - time_since_last)
+                # Still within 2-minute gap between Alert 1 and Alert 2
+                return
+
+            # Exactly 2 minutes elapsed; fire Wave 2 Desktop Alert (final desktop alert)
+            with _db_lock:
+                with get_db_connection() as conn:
+                    conn.execute("""
+                        UPDATE alert_incidents
+                        SET trigger_count = 2, last_alert_at = ?,
+                            current_val = ?, spot = ?, strike = ?, last_seen_at = ?
+                        WHERE incident_id = ?
+                    """, (now, current_val, spot, strike, now, incident["incident_id"]))
+                    conn.commit()
+
+            print(f"\n[ALERT ROUTER] 🚨 Wave 2/2 Desktop Alert (Final) for {rule.ticker} {rule.metric}! Incident: {incident['incident_id']}. Desktop alerts now silenced until 6am/9am/5pm.", flush=True)
+            
+            # Fire Desktop Alert #2
+            desktop_dispatch_fn(f"[2nd Alert] {title}", msg, f"Second alert: {voice_text}")
             return
 
         # -------------------------------------------------------------

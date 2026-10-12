@@ -1006,19 +1006,47 @@ class MultiAssetMonitor(EWrapper, EClient):
                         if strike:
                             msg += f"\n• ATM Strike: ${strike:.1f}"
 
-                        voice_text = rule.voice_template
+                        target_val = rule.target_price
+                        target_clean = f"{target_val:.2f}".rstrip("0").rstrip(".") if target_val is not None else ""
+                        target_fmt = f"{rule.target_price:.1f}%" if metric == "IV" else f"${rule.target_price:.2f}"
+                        cond_spoken = "rose above" if rule.condition == "ABOVE" else "fell below"
+                        spot_val = current_spot or self.spot_prices.get(ticker, 0.0)
+
+                        voice_vars = {
+                            "ticker": ticker,
+                            "metric": metric,
+                            "price": target_clean or rule.target_price,
+                            "target": target_clean or rule.target_price,
+                            "target_price": target_clean or rule.target_price,
+                            "target_fmt": target_fmt,
+                            "price_fmt": target_fmt,
+                            "current": current_value,
+                            "current_price": current_value,
+                            "current_fmt": f"{current_value:.1f}%" if metric == "IV" else f"${current_value:.2f}",
+                            "condition": cond_spoken,
+                            "raw_condition": rule.condition,
+                            "spot": spot_val,
+                            "spot_price": spot_val,
+                            "spot_fmt": f"${spot_val:.2f}"
+                        }
+
+                        raw_tpl = (rule.voice_template or "").strip()
+                        if not raw_tpl:
+                            if metric == "IV":
+                                raw_tpl = "Warning: {ticker} ATM IV {condition} {target} percent"
+                            else:
+                                raw_tpl = "Alert: {ticker} {condition} target price {price}"
+
                         try:
-                            voice_text = rule.voice_template.format(
-                                ticker=ticker,
-                                metric=metric,
-                                target=rule.target_price,
-                                target_fmt=f"{rule.target_price:.1f}%" if metric == "IV" else f"${rule.target_price:.2f}",
-                                current=current_value,
-                                condition=rule.condition,
-                                spot=current_spot or self.spot_prices.get(ticker, 0.0)
-                            )
+                            voice_text = raw_tpl.format(**voice_vars)
                         except Exception:
-                            pass
+                            voice_text = raw_tpl
+                            for k, v in voice_vars.items():
+                                voice_text = voice_text.replace(f"{{{k}}}", str(v))
+
+                        # If user's template does not mention the target price at all, automatically append it
+                        if target_clean and (target_clean not in voice_text and str(rule.target_price) not in voice_text):
+                            voice_text += f" at {target_clean}"
 
                         AlertRouter.handle_rule_trigger(
                             rule=rule,
@@ -1086,20 +1114,42 @@ class MultiAssetMonitor(EWrapper, EClient):
                         if strike:
                             msg += f"\n• ATM Strike: ${strike:.1f}"
 
-                        voice_text = rule.voice_template
+                        delta_val = pct_change if metric != "IV" else abs(delta)
+                        delta_clean = f"{delta_val:.1f}"
+                        spot_val = current_spot or self.spot_prices.get(ticker, 0.0)
+                        curr_clean = f"{current_value:.2f}".rstrip("0").rstrip(".")
+
+                        voice_vars = {
+                            "ticker": ticker,
+                            "metric": metric,
+                            "price": curr_clean,
+                            "current": curr_clean,
+                            "current_price": curr_clean,
+                            "current_fmt": f"{current_value:.1f}%" if metric == "IV" else f"${current_value:.2f}",
+                            "prior": f"{prior_val:.2f}".rstrip("0").rstrip("."),
+                            "prior_price": f"{prior_val:.2f}".rstrip("0").rstrip("."),
+                            "delta": delta_val,
+                            "delta_fmt": f"{delta_clean}%",
+                            "window": rule.window_str,
+                            "window_brief": window_desc,
+                            "spot": spot_val,
+                            "spot_price": spot_val,
+                            "direction": direction
+                        }
+
+                        raw_tpl = (rule.voice_template or "").strip()
+                        if not raw_tpl:
+                            if metric == "IV":
+                                raw_tpl = "Attention: {ticker} ATM IV changed by {delta:.1f} percent over {window_brief}"
+                            else:
+                                raw_tpl = "Notice: {ticker} stock price changed by {delta:.1f} percent over {window_brief}"
+
                         try:
-                            voice_text = rule.voice_template.format(
-                                ticker=ticker,
-                                metric=metric,
-                                delta=pct_change if metric != "IV" else abs(delta),
-                                current=current_value,
-                                prior=prior_val,
-                                window=rule.window_str,
-                                window_brief=window_desc,
-                                spot=current_spot or self.spot_prices.get(ticker, 0.0)
-                            )
+                            voice_text = raw_tpl.format(**voice_vars)
                         except Exception:
-                            pass
+                            voice_text = raw_tpl
+                            for k, v in voice_vars.items():
+                                voice_text = voice_text.replace(f"{{{k}}}", str(v))
 
                         AlertRouter.handle_rule_trigger(
                             rule=rule,

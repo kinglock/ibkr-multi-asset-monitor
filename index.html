@@ -876,7 +876,7 @@
           </td>
           <td>
             <input type="text" class="input-voice" value="${escapeQuotes(row.voice_alert_text || "")}" 
-              oninput="updateRowField(${idx}, 'voice_alert_text', this.value)" placeholder="Alert: {ticker} alert triggered">
+              oninput="updateRowField(${idx}, 'voice_alert_text', this.value)" placeholder="Alert: {ticker} target price {price}">
           </td>
           <td style="text-align: center;">
             <label class="switch">
@@ -918,7 +918,7 @@
           }
         } else if (row.metric === 'PRICE' && row.mode === 'TARGET') {
           if (!row.voice_alert_text || row.voice_alert_text.includes('ATM IV')) {
-            row.voice_alert_text = "Alert: {ticker} reached target price {target}";
+            row.voice_alert_text = "Alert: {ticker} reached target price {price}";
           }
         }
         renderConfigRows();
@@ -926,6 +926,26 @@
         if (field === 'ticker') {
           updateConfigMarketHints();
         }
+
+        // Auto-populate voice template with dynamic {price} / {target} if empty
+        if (field === 'target_price' || field === 'condition') {
+          const row = currentConfigRows[idx];
+          if (row.mode === 'TARGET' && (!row.voice_alert_text || row.voice_alert_text.trim() === '')) {
+            if (row.metric === 'IV') {
+              row.voice_alert_text = row.condition === 'BELOW'
+                ? "Notice: {ticker} ATM IV dropped below {target} percent"
+                : "Warning: {ticker} ATM IV spiked above {target} percent";
+            } else {
+              row.voice_alert_text = row.condition === 'BELOW'
+                ? "Notice: {ticker} dropped below target price {price}"
+                : "Alert: {ticker} rose above target price {price}";
+            }
+            const tr = document.getElementById("config-tbody")?.children[idx];
+            const voiceInput = tr?.querySelector(".input-voice");
+            if (voiceInput) voiceInput.value = row.voice_alert_text;
+          }
+        }
+
         // Just update validation inline
         const valRes = validateRow(currentConfigRows[idx]);
         const tr = document.getElementById("config-tbody").children[idx];
@@ -955,7 +975,7 @@
         voice_alert_text: isIVTarget 
           ? "Warning: {ticker} ATM IV spiked above {target} percent" 
           : (isPriceTarget 
-              ? "Alert: {ticker} rose above target price {target}" 
+              ? "Alert: {ticker} rose above target price {price}" 
               : "Alert: {ticker} {metric} moved by {delta:.1f} percent over {window_brief}"),
         enabled: "true"
       });

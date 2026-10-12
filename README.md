@@ -136,6 +136,34 @@ launchctl load ~/Library/LaunchAgents/com.ibkr.multi_asset_monitor.plist
 
 ---
 
-## Security & Privacy Notice
-- `credentials.json`, `client_secret*.json`, and `gmail_token.json` are strictly excluded via `.gitignore` and should **never** be committed to version control.
-- All historical SQLite tick data and alert incident logs (`*.db`) are excluded.
+## Moomoo Open API: SOXL Full-Depth Market Data (Level 2 / Level 3 Depth)
+
+Consumes live, 30-to-40 level order book depth ladders, order book imbalances, microprice, and liquidity walls for `US.SOXL` via Moomoo OpenD.
+
+### Prerequisites
+1. Ensure **moomoo OpenD** is running on `127.0.0.1:11111`:
+   ```bash
+   open /Applications/moomoo_OpenD.app
+   ```
+2. Python SDK (`moomoo-api` / `futu-api`):
+   ```bash
+   pip3 install moomoo-api futu-api
+   ```
+
+### Quick Start Commands
+- **Instant Depth Snapshot**:
+  ```bash
+  python3 moomoo_soxl_depth_consumer.py --mode snapshot --levels 30
+  ```
+- **Real-Time Live Streaming Ladder**:
+  ```bash
+  python3 moomoo_soxl_depth_consumer.py --mode stream --levels 15
+  ```
+- **Stream Depth Snapshots into SQLite Database**:
+  ```bash
+  python3 moomoo_soxl_depth_consumer.py --mode record --db soxl_moomoo_depth.db
+  ```
+- **Output JSON for Web APIs / Alerting**:
+  ```bash
+  python3 moomoo_soxl_depth_consumer.py --mode snapshot --json
+  ```

@@ -94,7 +94,7 @@ def build_alert_email_html(data: dict) -> str:
     <div style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 18px 24px; border-bottom: 1px solid #223049;">
       <div style="display: flex; align-items: center; justify-content: space-between;">
         <span style="display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); text-transform: uppercase; letter-spacing: 0.5px;">
-          🚨 ALERT #{attempt_num} · ESCALATION
+          🚨 ALERT #{attempt_num} · REAL-TIME NOTIFICATION
         </span>
         <span style="font-size: 12px; color: #94a3b8; font-family: monospace;">{time_str}</span>
       </div>
@@ -132,7 +132,7 @@ def build_alert_email_html(data: dict) -> str:
 
       <!-- Instruction / Notice -->
       <div style="font-size: 13px; color: #94a3b8; line-height: 1.5; margin-bottom: 20px;">
-        This alert has fired on your Mac desktop twice. To prevent alert fatigue, desktop sound/voice alerts are now <b>silenced</b> until scheduled snooze reminders at <b>6:00 AM, 9:00 AM, and 5:00 PM</b> unless confirmed below.
+        A desktop alert was just dispatched to your Mac. If unacknowledged, a 2nd desktop reminder will follow in 2 minutes, after which desktop sound/voice alerts will be <b>silenced</b> until scheduled reminders at <b>6:00 AM, 9:00 AM, and 5:00 PM</b> unless confirmed below.
       </div>
 
       <!-- Action Buttons -->

@@ -90,4 +90,7 @@ find_options.py
 ibkr_option_quotes.py
 list_tabs.py
 setup_custom_stmt.py
+moomoo*
+bookmap*
+launch_desktop_bookmap.sh
 
