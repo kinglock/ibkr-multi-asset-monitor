@@ -1,6 +1,6 @@
 ticker,metric,mode,time_window,threshold_pct,target_price,condition,voice_alert_text,enabled
-SOXL,PRICE,TARGET,,,139.9,ABOVE,Alert: {ticker} rose above target price {price},true
-SOXL,PRICE,TARGET,,,139.2,BELOW,Notice: {ticker} dropped below target price {price},true
+SOXL,PRICE,TARGET,,,139.9,ABOVE,Good: {ticker} rose above target price {price},true
+SOXL,PRICE,TARGET,,,139.2,BELOW,Bad: {ticker} dropped below target price {price},true
 SOXL,IV,TARGET,,,105,ABOVE,Warning: {ticker} ATM IV spiked above {target} percent,true
 SOXL,IV,VELOCITY,5m,5.0,,,Attention: {ticker} ATM IV changed by {delta:.1f} percent over 5 minutes,true
 SOXL,PRICE,VELOCITY,30m,4.0,,,Notice: {ticker} stock price changed by {delta:.1f} percent over 30 minutes,true

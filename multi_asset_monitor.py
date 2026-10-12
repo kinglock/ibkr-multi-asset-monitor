@@ -454,6 +454,13 @@ class MultiAssetMonitor(EWrapper, EClient):
         self.baseline_cache = {}      # rule_id -> {"value": float, "timestamp": float, "mode_str": str, "window_desc": str, "target_ts": float, "fetched_at": float}
         self.baseline_thread = None
 
+        # Wire metric value provider into AlertRouter
+        def get_metric_val(t: str, m: str):
+            if m == "PRICE":
+                return self.spot_prices.get(t)
+            return None
+        AlertRouter.set_value_provider(get_metric_val)
+
     def record_ticker_subscribe(self, ticker: str, metric: str, note: str = ""):
         with self.lock:
             st = self.stream_status.setdefault((ticker, metric), {})
@@ -922,7 +929,7 @@ class MultiAssetMonitor(EWrapper, EClient):
             self.record_ticker_update(ticker, "PRICE", stream_state)
             self.request_status_update(immediate=False)
 
-            if prev_spot is None or abs(price - prev_spot) > 0.02:
+            if prev_spot is None or abs(price - prev_spot) >= 0.01:
                 self.spot_prices[ticker] = price
                 # 1. Record stock price in SQLite
                 record_tick(ticker, "PRICE", price, spot=price)

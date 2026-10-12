@@ -87,6 +87,138 @@ init_alert_db()
 class AlertRouter:
     """Intelligent alert escalation controller."""
 
+    # In-memory tracking of rule hit states: rule_id -> {"is_hit": bool, "last_updated": float, "val": float, "spot": float}
+    _rule_state: Dict[str, Dict[str, Any]] = {}
+
+    # Active 2-minute evaluation timers: incident_id -> threading.Timer
+    _active_timers: Dict[str, threading.Timer] = {}
+
+    # Optional external metric value provider callback: (ticker, metric) -> float or None
+    _value_provider: Optional[Any] = None
+
+    @classmethod
+    def set_value_provider(cls, provider_fn: Any):
+        """Registers a callback for real-time metric lookup (e.g. from MultiAssetMonitor)."""
+        cls._value_provider = provider_fn
+
+    @classmethod
+    def get_latest_metric_value(cls, ticker: str, metric: str) -> Optional[float]:
+        """Fetches latest metric value from provider callback or SQLite history table."""
+        if cls._value_provider:
+            try:
+                val = cls._value_provider(ticker, metric)
+                if val is not None:
+                    return float(val)
+            except Exception:
+                pass
+        try:
+            with get_db_connection() as conn:
+                row = conn.execute(
+                    "SELECT value FROM history WHERE ticker = ? AND metric = ? ORDER BY id DESC LIMIT 1",
+                    (ticker, metric)
+                ).fetchone()
+                if row and row["value"] is not None:
+                    return float(row["value"])
+        except Exception:
+            pass
+        return None
+
+    @classmethod
+    def is_criteria_met(cls, rule: Any, current_val: Optional[float] = None) -> bool:
+        """Evaluates whether rule condition is currently met."""
+        rule_id = getattr(rule, "rule_id", f"{getattr(rule, 'ticker', '')}_{getattr(rule, 'metric', '')}")
+        state = cls._rule_state.get(rule_id)
+        now = time.time()
+
+        # 1. Check in-memory rule state if updated recently (within 45s)
+        if state and (now - state.get("last_updated", 0)) < 45.0:
+            return bool(state.get("is_hit", False))
+
+        # 2. Check current metric value if available
+        ticker = getattr(rule, "ticker", "")
+        metric = getattr(rule, "metric", "")
+        if current_val is None:
+            current_val = cls.get_latest_metric_value(ticker, metric)
+
+        if current_val is None:
+            return bool(state.get("is_hit", False)) if state else False
+
+        mode = getattr(rule, "mode", "TARGET")
+        condition = getattr(rule, "condition", "ABOVE")
+        target_price = getattr(rule, "target_price", None)
+
+        if mode == "TARGET" and target_price is not None:
+            if condition == "ABOVE":
+                return current_val >= target_price
+            elif condition == "BELOW":
+                return current_val <= target_price
+
+        return bool(state.get("is_hit", False)) if state else False
+
+    @classmethod
+    def _evaluate_two_minute_mark(
+        cls,
+        incident_id: str,
+        rule: Any,
+        title: str,
+        msg: str,
+        voice_text: str,
+        desktop_dispatch_fn: Any
+    ):
+        """
+        Executed exactly 2 minutes (ALERT_COOLDOWN_SECONDS) after Alert #1.
+        Checks if criteria is still met:
+          - If YES: fires Desktop Alert #2.
+          - If NO: lets it timeout and marks incident RESOLVED.
+        """
+        cls._active_timers.pop(incident_id, None)
+
+        with _db_lock:
+            with get_db_connection() as conn:
+                row = conn.execute(
+                    "SELECT * FROM alert_incidents WHERE incident_id = ?",
+                    (incident_id,)
+                ).fetchone()
+                if not row:
+                    return
+                incident = dict(row)
+
+        if incident.get("confirmed") == 1 or incident.get("disabled") == 1 or incident.get("status") != "ACTIVE":
+            return
+
+        if incident.get("trigger_count", 1) >= 2:
+            return
+
+        rule_id = getattr(rule, "rule_id", incident.get("rule_id"))
+        ticker = incident.get("ticker", "")
+        metric = incident.get("metric", "")
+
+        is_met = cls.is_criteria_met(rule)
+        now = time.time()
+
+        if is_met:
+            with _db_lock:
+                with get_db_connection() as conn:
+                    conn.execute("""
+                        UPDATE alert_incidents
+                        SET trigger_count = 2, last_alert_at = ?, last_seen_at = ?
+                        WHERE incident_id = ?
+                    """, (now, now, incident_id))
+                    conn.commit()
+
+            print(f"\n[ALERT ROUTER] 🚨 Wave 2/2 Desktop Alert (Final at 2m mark) for {ticker} {metric}! Criteria still met. Incident: {incident_id}. Desktop alerts now silenced until 6am/9am/5pm.", flush=True)
+            desktop_dispatch_fn(f"[2nd Alert] {title}", msg, f"Second alert: {voice_text}")
+        else:
+            with _db_lock:
+                with get_db_connection() as conn:
+                    conn.execute(
+                        "UPDATE alert_incidents SET status = 'RESOLVED' WHERE incident_id = ?",
+                        (incident_id,)
+                    )
+                    conn.commit()
+
+            print(f"\n[ALERT ROUTER] ⏱️ 2 minutes elapsed since Alert #1. Criteria is NO LONGER MET for {ticker} {metric} ({rule_id}). Incident timed out. Suppressing 2nd alert.", flush=True)
+
     @staticmethod
     def get_active_incident(rule_id: str) -> Optional[Dict[str, Any]]:
         """Retrieves currently ACTIVE incident for this rule if one exists."""
@@ -123,13 +255,21 @@ class AlertRouter:
     ):
         """
         Main decision engine called whenever a rule's trigger condition is evaluated as TRUE.
-        Enforces 2-wave desktop cadence + Gmail escalation on Wave 2 + 6am/9am/5pm fallback snooze.
+        Enforces 2-wave desktop cadence + Gmail escalation on Wave 1 + 6am/9am/5pm fallback snooze.
         """
         now = time.time()
         dt_now = datetime.datetime.now()
         rule_id = getattr(rule, "rule_id", f"{rule.ticker}_{rule.metric}_{rule.mode}")
         rule_num = getattr(rule, "rule_num", None)
         rule_summary = getattr(rule, "get_rule_summary", lambda: str(rule_id))()
+
+        # Update in-memory rule state
+        cls._rule_state[rule_id] = {
+            "is_hit": True,
+            "last_updated": now,
+            "val": current_val,
+            "spot": spot
+        }
 
         incident = cls.get_active_incident(rule_id)
 
@@ -160,6 +300,21 @@ class AlertRouter:
 
             print(f"\n[ALERT ROUTER] 🚨 Wave 1/2 Desktop Alert + Gmail Alert dispatched for {rule.ticker} {rule.metric} (Val: {current_val:.2f}). Incident: {incident_id}", flush=True)
             desktop_dispatch_fn(title, msg, voice_text)
+
+            # Schedule exact 2-minute mark evaluation timer
+            def timer_task():
+                cls._evaluate_two_minute_mark(
+                    incident_id=incident_id,
+                    rule=rule,
+                    title=title,
+                    msg=msg,
+                    voice_text=voice_text,
+                    desktop_dispatch_fn=desktop_dispatch_fn
+                )
+            t = threading.Timer(ALERT_COOLDOWN_SECONDS, timer_task)
+            t.daemon = True
+            cls._active_timers[incident_id] = t
+            t.start()
 
             # Fire Gmail Alert immediately on first trigger asynchronously
             confirm_url = f"{TAILSCALE_BASE_URL}/api/alert/confirm?token={token}"
@@ -207,11 +362,37 @@ class AlertRouter:
         # -------------------------------------------------------------
         if trigger_count == 1:
             if time_since_last < ALERT_COOLDOWN_SECONDS:
-                remaining = int(ALERT_COOLDOWN_SECONDS - time_since_last)
                 # Still within 2-minute gap between Alert 1 and Alert 2
                 return
 
-            # Exactly 2 minutes elapsed; fire Wave 2 Desktop Alert (final desktop alert)
+            if time_since_last > (ALERT_COOLDOWN_SECONDS + 30.0):
+                # More than 2.5 minutes elapsed without Wave 2 firing.
+                # The 2-minute evaluation window has expired (timed out).
+                with _db_lock:
+                    with get_db_connection() as conn:
+                        conn.execute(
+                            "UPDATE alert_incidents SET status = 'RESOLVED' WHERE incident_id = ?",
+                            (incident["incident_id"],)
+                        )
+                        conn.commit()
+                t = cls._active_timers.pop(incident["incident_id"], None)
+                if t:
+                    try:
+                        t.cancel()
+                    except Exception:
+                        pass
+                print(f"[ALERT ROUTER] ⏱️ Tick arrived after 2-minute window ({time_since_last:.1f}s > 150s). Incident {incident['incident_id']} timed out. Suppressing 2nd alert.", flush=True)
+                return
+
+            # Within 2-minute evaluation window [120s, 150s] and criteria is met!
+            # Cancel timer if still pending so it doesn't double-fire
+            t = cls._active_timers.pop(incident["incident_id"], None)
+            if t:
+                try:
+                    t.cancel()
+                except Exception:
+                    pass
+
             with _db_lock:
                 with get_db_connection() as conn:
                     conn.execute("""
@@ -265,15 +446,38 @@ class AlertRouter:
 
     @classmethod
     def handle_rule_cleared(cls, rule_id: str):
-        """Called when a rule's condition is NOT met. If cleared for > 300s, resolves the incident."""
+        """Called when a rule's condition is NOT met."""
+        now = time.time()
+        cls._rule_state[rule_id] = {"is_hit": False, "last_updated": now}
+
         incident = cls.get_active_incident(rule_id)
         if not incident:
             return
 
-        now = time.time()
-        last_seen = incident.get("last_seen_at", incident.get("first_triggered_at", now))
-        
-        # If the condition has cleared and stayed clear for at least 5 minutes, resolve it
+        trigger_count = incident.get("trigger_count", 1)
+        first_triggered_at = incident.get("first_triggered_at", now)
+
+        # CASE A: If trigger_count == 1 and 2 minutes have elapsed since first alert:
+        # Criteria is NOT met at or after the 2-minute mark -> timeout immediately!
+        if trigger_count == 1 and (now - first_triggered_at) >= ALERT_COOLDOWN_SECONDS:
+            with _db_lock:
+                with get_db_connection() as conn:
+                    conn.execute(
+                        "UPDATE alert_incidents SET status = 'RESOLVED' WHERE incident_id = ?",
+                        (incident["incident_id"],)
+                    )
+                    conn.commit()
+            t = cls._active_timers.pop(incident["incident_id"], None)
+            if t:
+                try:
+                    t.cancel()
+                except Exception:
+                    pass
+            print(f"[ALERT ROUTER] ⏱️ Rule {rule_id} condition cleared at/after 2m mark. Incident {incident['incident_id']} timed out.", flush=True)
+            return
+
+        # CASE B: For trigger_count >= 2, if cleared for > 300s, resolve the incident
+        last_seen = incident.get("last_seen_at", first_triggered_at)
         if (now - last_seen) > 300.0:
             with _db_lock:
                 with get_db_connection() as conn:
@@ -290,6 +494,14 @@ class AlertRouter:
         incident = cls.get_incident_by_token(token)
         if not incident:
             return {"success": False, "message": "Invalid or expired confirmation token."}
+
+        # Cancel active 2-minute timer if running
+        t = cls._active_timers.pop(incident["incident_id"], None)
+        if t:
+            try:
+                t.cancel()
+            except Exception:
+                pass
 
         now = time.time()
         with _db_lock:
@@ -314,6 +526,14 @@ class AlertRouter:
         incident = cls.get_incident_by_token(token)
         if not incident:
             return {"success": False, "message": "Invalid or expired token."}
+
+        # Cancel active 2-minute timer if running
+        t = cls._active_timers.pop(incident["incident_id"], None)
+        if t:
+            try:
+                t.cancel()
+            except Exception:
+                pass
 
         now = time.time()
         rule_num = incident.get("rule_num")
