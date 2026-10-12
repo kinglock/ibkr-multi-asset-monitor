@@ -592,7 +592,7 @@ class MultiAssetMonitor(EWrapper, EClient):
                     status_rows.append(row_fallback)
 
             try:
-                temp_path = STATUS_CSV_PATH + ".tmp"
+                temp_path = f"{STATUS_CSV_PATH}.tmp.{os.getpid()}"
                 with open(temp_path, "w", newline="", encoding="utf-8") as f:
                     writer = csv.DictWriter(f, fieldnames=fieldnames)
                     writer.writeheader()

@@ -44,30 +44,69 @@ def check_tws_connectivity(timeout=0.3):
 
 def get_daemon_info():
     try:
-        res = subprocess.run(
-            ["pgrep", "-fl", "multi_asset_monitor.py"],
-            capture_output=True, text=True, timeout=1.0
-        )
-        lines = res.stdout.strip().splitlines()
-        for line in lines:
-            parts = line.split(None, 1)
-            if parts and parts[0].isdigit():
-                pid = int(parts[0])
-                if pid != os.getpid():
-                    # Get CPU and memory info
-                    ps_res = subprocess.run(
-                        ["ps", "-p", str(pid), "-o", "%cpu,%mem,etime"],
-                        capture_output=True, text=True, timeout=1.0
-                    )
-                    ps_lines = ps_res.stdout.strip().splitlines()
-                    stats = ps_lines[1].split() if len(ps_lines) > 1 else ["0.0", "0.0", "00:00"]
-                    return {
-                        "running": True,
-                        "pid": pid,
-                        "cpu": stats[0] if len(stats) > 0 else "0.0",
-                        "mem": stats[1] if len(stats) > 1 else "0.0",
-                        "uptime": stats[2] if len(stats) > 2 else "-"
-                    }
+        pid = None
+        # 1. Primary: query launchd directly for com.ibkr.multi_asset_monitor
+        try:
+            res = subprocess.run(
+                ["launchctl", "list", "com.ibkr.multi_asset_monitor"],
+                capture_output=True, text=True, timeout=1.5
+            )
+            if res.returncode == 0:
+                for line in res.stdout.splitlines():
+                    line = line.strip()
+                    if "PID" in line and "=" in line:
+                        parts = line.split("=")
+                        if len(parts) > 1:
+                            val = parts[1].strip().strip(";").strip('"').strip()
+                            if val.isdigit():
+                                pid = int(val)
+                                break
+        except Exception:
+            pass
+
+        # 2. Fallback: check via ps
+        if not pid:
+            try:
+                ps_res = subprocess.run(
+                    ["ps", "-ax", "-o", "pid,command"],
+                    capture_output=True, text=True, timeout=1.5
+                )
+                if ps_res.returncode == 0:
+                    for line in ps_res.stdout.splitlines():
+                        if "multi_asset_monitor.py" in line and "python" in line.lower() and "grep" not in line:
+                            parts = line.strip().split(None, 1)
+                            if parts and parts[0].isdigit():
+                                candidate = int(parts[0])
+                                if candidate != os.getpid():
+                                    pid = candidate
+                                    break
+            except Exception:
+                pass
+
+        if pid:
+            try:
+                ps_stats = subprocess.run(
+                    ["ps", "-p", str(pid), "-o", "%cpu,%mem,etime"],
+                    capture_output=True, text=True, timeout=1.5
+                )
+                ps_lines = ps_stats.stdout.strip().splitlines()
+                stats = ps_lines[1].split() if len(ps_lines) > 1 else ["0.0", "0.0", "00:00"]
+                return {
+                    "running": True,
+                    "pid": pid,
+                    "cpu": stats[0] if len(stats) > 0 else "0.0",
+                    "mem": stats[1] if len(stats) > 1 else "0.0",
+                    "uptime": stats[2] if len(stats) > 2 else "-"
+                }
+            except Exception:
+                return {
+                    "running": True,
+                    "pid": pid,
+                    "cpu": "0.0",
+                    "mem": "0.0",
+                    "uptime": "-"
+                }
+
         return {"running": False, "pid": None, "cpu": "0.0", "mem": "0.0", "uptime": "-"}
     except Exception as e:
         return {"running": False, "pid": None, "error": str(e)}
@@ -515,14 +554,14 @@ class MonitorHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/daemon/restart":
             try:
-                plist = os.path.expanduser("~/Library/LaunchAgents/com.ibkr.multi_asset_monitor.plist")
-                cmd = f"launchctl unload '{plist}' && launchctl load '{plist}'"
+                uid = os.getuid()
+                cmd = f"launchctl kickstart -k gui/{uid}/com.ibkr.multi_asset_monitor"
                 res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5.0)
                 time.sleep(1.0)
                 daemon_info = get_daemon_info()
                 self._send_json({
                     "success": True,
-                    "message": "Daemon restarted successfully via launchctl",
+                    "message": "Daemon restarted successfully via launchctl kickstart",
                     "daemon": daemon_info
                 })
             except Exception as e:
